@@ -19,6 +19,7 @@ class Log:
         self.data = []
 
     def import_data(self,
+                    index,
                     backend_tag_keyword="",
                     lte="",
                     gte="",
@@ -28,6 +29,7 @@ class Log:
                     pwd=os.environ.get("private")):
         """
         Import data from Kibana, see query in the code.
+        :param index: Name of the elk index to query
         :param backend_tag_keyword: Filter log based on the backend tag keyword
         :param lte: Request log prior to lte date
         :param gte: Request log older than gte date
@@ -44,13 +46,10 @@ class Log:
             raise TypeError("lte arg shall be datetime.datetime object (got {})".format(type(lte)))
         if query == "default" and not isinstance(gte, datetime.datetime):
             raise TypeError("gte arg shall be datetime.datetime object (got {})".format(type(gte)))
-        if backend_tag_keyword == "":
-            raise ValueError("backend_tag_keyword is empty")
-        lte = lte.strftime("%d/%m/%Y")
-        gte = gte.strftime("%d/%m/%Y")
-        index = "varnishlogbeat"
         aggs_name = "byhour"
         if query == "default":
+            lte = lte.strftime("%d/%m/%Y")
+            gte = gte.strftime("%d/%m/%Y")
             query = {
                 "size": 0,
                 "query": {

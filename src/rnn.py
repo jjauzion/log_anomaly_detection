@@ -1,32 +1,67 @@
 import tensorflow as tf
 import numpy as np
+import pickle
 
 from src import hyper_parameters as hp
 
 
 class RNN:
 
-    def __init__(self, learning_rate, nb_input, nb_output,
-                 nb_time_step, nb_neuron, batch_size, nb_iteration):
-        self.learning_rate = learning_rate
-        self.nb_input = nb_input
-        self.nb_output = nb_output
-        self.nb_time_step = nb_time_step
-        self.nb_neuron = nb_neuron
-        self.batch_size = batch_size
-        self.nb_iteration = nb_iteration
+    def __init__(self, hyper_parameter):
+        self.learning_rate = hyper_parameter["learning_rate"]
+        self.nb_input = hyper_parameter["nb_input"]
+        self.nb_output = hyper_parameter["nb_output"]
+        self.nb_time_step = hyper_parameter["nb_time_step"]
+        self.nb_neuron = hyper_parameter["nb_neuron"]
+        self.batch_size = hyper_parameter["batch_size"]
+        self.nb_iteration = hyper_parameter["nb_iteration"]
+        self.mse = None
+        self.seed = None
 
-    def train(self, data_handle, save_name, seed=None):
+    def __save_parameter(self, name):
+        hyper_parameter = {
+            "learning_rate": self.learning_rate,
+            "nb_input": self.nb_input,
+            "nb_output": self.nb_output,
+            "nb_time_step": self.nb_time_step,
+            "nb_neuron": self.nb_neuron,
+            "batch_size": self.batch_size,
+            "nb_iteration": self.nb_iteration
+        }
+        parameter = {
+            "hyper_parameter": hyper_parameter,
+            "mse": self.mse,
+            "seed": self.seed
+        }
+        with open(name, 'wb') as file:
+            pickle.dump(parameter, file)
+
+    def __load_parameter(self, name):
+        with open(name, 'rb') as file:
+            parameter = pickle.load(file)
+        hyper_parameter = parameter["hyper_parameter"]
+        self.learning_rate = hyper_parameter["learning_rate"]
+        self.nb_input = hyper_parameter["nb_input"]
+        self.nb_output = hyper_parameter["nb_output"]
+        self.nb_time_step = hyper_parameter["nb_time_step"]
+        self.nb_neuron = hyper_parameter["nb_neuron"]
+        self.batch_size = hyper_parameter["batch_size"]
+        self.nb_iteration = hyper_parameter["nb_iteration"]
+        self.mse = parameter["mse"]
+        self.seed = parameter["seed"]
+
+    def train(self, data_handle, sess_name, seed=None):
         """
         Train the RNN on the train set from the data_handle and
         save the trained model according to the given name
         :param data_handle: Object containing the train set and a next_batch method
-        :param save_name: Name of the model for the save
+        :param sess_name: Name of the model for the save
         :param seed: Seed used to initialize numpy and tensorflow Random state
         :return: List of the Mean Square Error every 'hp.report_iteration_freq' step of the training
         """
-        np.random.seed(seed)
-        tf.set_random_seed(seed)
+        self.seed = seed
+        np.random.seed(self.seed)
+        tf.set_random_seed(self.seed)
         X = tf.placeholder(dtype=tf.float32, shape=[None, self.nb_time_step, self.nb_input], name="X")
         y = tf.placeholder(dtype=tf.float32, shape=[None, self.nb_time_step, self.nb_output], name="Y")
         hidden_cell = tf.contrib.rnn.BasicLSTMCell(num_units=self.nb_neuron, activation=tf.nn.relu)
@@ -38,17 +73,18 @@ class RNN:
         saver = tf.train.Saver()
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
-            mse = {"iteration": [], "mse": []}
+            self.mse = {"iteration": [], "mse": []}
             for i in range(self.nb_iteration):
                 x_batch, y_batch = data_handle.next_batch(self.batch_size, self.nb_time_step)
                 sess.run(trainer, feed_dict={X: x_batch, y: y_batch})
                 if i % hp.report_iter_freq == 0:
                     print("Step {}: ; ".format(i), end="")
-                    mse["iteration"].append(i)
-                    mse["mse"].append(loss.eval(feed_dict={X: x_batch, y: y_batch}))
-                    print("mse = {}".format(mse["mse"][-1]))
-            saver.save(sess, "./" + save_name)
-        return mse
+                    self.mse["iteration"].append(i)
+                    self.mse["mse"].append(loss.eval(feed_dict={X: x_batch, y: y_batch}))
+                    print("mse = {}".format(self.mse["mse"][-1]))
+            saver.save(sess, "./" + sess_name)
+        self.__save_parameter(sess_name + ".param")
+        return self.mse
 
     def run(self, sess_name, input_set, test_set=None, nb_pred=1):
         """
@@ -64,6 +100,7 @@ class RNN:
         :param nb_pred: Number of prediction value to be made after the input_set
         :return:
         """
+        self.__load_parameter(sess_name + ".param")
         if input_set.shape[0] != self.nb_time_step:
             raise ValueError("The input_set shall have exactly self.nb_time_step (={}) rows."
                              "Got {} rows".format(self.nb_time_step, input_set.shape[0]))

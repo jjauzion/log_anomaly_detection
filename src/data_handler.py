@@ -70,7 +70,6 @@ class DataHandler:
         if self.train_scaled is None:
             raise AttributeError("Data must but scaled prior to being batched")
         start = np.random.randint(len(self.train_scaled) - nb_time_step, size=batch_size)
-        print(start)
         batch_x = np.zeros(shape=(batch_size, nb_time_step, self.train_scaled.shape[1]))
         batch_y = np.zeros(shape=(batch_size, nb_time_step, self.train_scaled.shape[1]))
         for i, s in enumerate(start):
