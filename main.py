@@ -5,7 +5,7 @@ from src import log_handler as lg
 from src import data_handler as dh
 from src.rnn import RNN
 from src import hyper_parameters as hp
-from src import model_optimizer
+from src import model
 
 """
 #JOIN LOG DATA
@@ -66,39 +66,38 @@ data_handle = dh.DataHandler(log_data=log.data)
 data_handle.train_test_split(split_date, test_set_first=True)
 data_handle.scale_data()
 
+#MODEL OPTIMIZATION
+model.model_optimizer(data_handle, learning_rate=[0.001],
+                      nb_neuron=[200], nb_time_step=[48, 96],
+                      sess_folder="model")
+
+"""
 #CREATING MODEL
 hyper_parameter = {
-    "learning_rate": hp.learning_rate,
+    "learning_rate": 0.01,
     "nb_input": hp.nb_input,
     "nb_output": hp.nb_output,
-    "nb_time_step": hp.nb_time_step,
-    "nb_neuron": hp.nb_neuron,
+    "nb_time_step": 120,
+    "nb_neuron": 200,
     "batch_size": hp.batch_size,
     "nb_iteration": hp.nb_iteration
 }
 rnn = RNN(hyper_parameter)
 
 #SESSION NAME
-sess_name = "model/RNN_96_inputs_200_neurons_1000iter"
+sess_file = "model/RNN_{}lr_{}inputs_{}neurons".format(hyper_parameter["learning_rate"],
+                                                       hyper_parameter["nb_time_step"],
+                                                       hyper_parameter["nb_neuron"])
 
-"""
-#TRAIN RNN
-print("Starting training...")
-mse = rnn.train(data_handle, sess_name=sess_name, seed=42)
-fig, ax = plt.subplots()
-ax.set_xlabel("iteration")
-ax.set_ylabel("mse")
-ax.plot(mse["iteration"], mse["mse"])
-print("Training completed !!")
-"""
+#TRAIN with model.py
+model.train_model(sess_file, rnn, data_handle, seed=42)
 
-#PREDICTION WITH TEST_SET
-test_date = datetime.datetime.strptime("2018-06-10", "%Y-%m-%d")
-input_start_date = test_date - datetime.timedelta(hours=hp.nb_time_step)
-input_data, input_scaled = data_handle.get_sample(input_start_date, hp.nb_time_step)
-test_set, test_scaled = data_handle.get_sample(test_date, 24)
-y_pred = rnn.run(sess_name=sess_name, input_set=input_scaled, test_set=test_scaled)
-y_pred = data_handle.inverse_transform(y_pred)
+#PREDICTION with model.py
+test_date = datetime.datetime.strptime("2018-10-19", "%Y-%m-%d")
+y_pred, test_set, mse, input_data = \
+    model.prediction(sess_file, rnn, data_handle, test_date=test_date, nb_prediction=24)
+model.plot_result(y_pred, test_set, input_data)
+"""
 
 """
 #PREDICTION BLIND
@@ -111,23 +110,3 @@ y_pred = rnn.run(sess_name=sess_name, input_set=input_scaled, nb_pred=nb_pred)
 y_pred = data_handle.inverse_transform(y_pred)
 """
 
-"""
-model_optimizer.train_model(sess_name, hyper_parameter, data_handle)
-test_date = datetime.datetime.strptime("2018-10-19", "%Y-%m-%d")
-y_pred = model_optimizer.prediction(sess_name, rnn, data_handle, test_date, nb_prediction=24)
-"""
-
-#PLOT RESULT
-import pandas as pd
-nb_pred = y_pred.shape[0]
-test_df = pd.DataFrame(test_set[:nb_pred].reshape(-1),
-                       index=list(range(hp.nb_time_step, hp.nb_time_step + nb_pred)))
-input_df = pd.DataFrame(input_data.reshape(-1))
-df = pd.concat([input_df, test_df])
-pred_df = pd.DataFrame(y_pred.reshape(-1),
-                       index=list(range(hp.nb_time_step, hp.nb_time_step + nb_pred)),
-                       columns=["prediction"])
-df = pd.concat([df, pred_df], axis=1).set_index("time")
-print(df)
-df.plot()
-plt.show()
