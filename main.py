@@ -67,9 +67,9 @@ data_handle.train_test_split(split_date, test_set_first=True)
 data_handle.scale_data()
 
 #MODEL OPTIMIZATION
-model.model_optimizer(data_handle, learning_rate=[0.001],
-                      nb_neuron=[200], nb_time_step=[48, 96],
-                      sess_folder="model")
+model.model_optimizer(data_handle, learning_rate=[0.001, 0.01, 0.1],
+                      nb_neuron=[50, 100, 200], nb_time_step=[48, 96, 168],
+                      sess_folder="model", seed=42)
 
 """
 #CREATING MODEL
@@ -77,7 +77,7 @@ hyper_parameter = {
     "learning_rate": 0.01,
     "nb_input": hp.nb_input,
     "nb_output": hp.nb_output,
-    "nb_time_step": 120,
+    "nb_time_step": 48,
     "nb_neuron": 200,
     "batch_size": hp.batch_size,
     "nb_iteration": hp.nb_iteration
@@ -95,7 +95,7 @@ model.train_model(sess_file, rnn, data_handle, seed=42)
 #PREDICTION with model.py
 test_date = datetime.datetime.strptime("2018-10-19", "%Y-%m-%d")
 y_pred, test_set, mse, input_data = \
-    model.prediction(sess_file, rnn, data_handle, test_date=test_date, nb_prediction=24)
+    model.prediction(sess_file, rnn, data_handle)
 model.plot_result(y_pred, test_set, input_data)
 """
 

@@ -21,6 +21,7 @@ class RNN:
             self.nb_iteration = hyper_parameter["nb_iteration"]
             self.report_iter_freq = report_iter_freq
             self.mse = None
+            self.mse_training = None
             self.seed = None
 
     def __save_parameter(self, name):
@@ -36,6 +37,7 @@ class RNN:
         parameter = {
             "hyper_parameter": hyper_parameter,
             "mse": self.mse,
+            "mse_training": self.mse_training,
             "seed": self.seed,
             "report_iter_freq": self.report_iter_freq
         }
@@ -54,6 +56,7 @@ class RNN:
         self.batch_size = hyper_parameter["batch_size"]
         self.nb_iteration = hyper_parameter["nb_iteration"]
         self.mse = parameter["mse"]
+        self.mse_training = parameter["mse_training"]
         self.seed = parameter["seed"]
         self.report_iter_freq = parameter["report_iter_freq"]
 
@@ -93,6 +96,9 @@ class RNN:
                     self.mse["mse"].append(loss.eval(feed_dict={X: x_batch, y: y_batch}))
                     print("mse = {}".format(self.mse["mse"][-1]))
             saver.save(sess, "./" + sess_file)
+        y_pred = self.run(sess_file, data_handle.train_scaled[:self.nb_time_step],
+                          data_handle.train_scaled[self.nb_time_step:])
+        self.mse_training = np.mean(np.square(y_pred - data_handle.train_scaled[self.nb_time_step:]))
         self.__save_parameter(sess_file + ".param")
         return self.mse
 
@@ -110,7 +116,6 @@ class RNN:
         :param nb_pred: Number of prediction value to be made after the input_set
         :return:
         """
-        self.__load_parameter(sess_file + ".param")
         if input_set.shape[0] != self.nb_time_step:
             raise ValueError("The input_set shall have exactly self.nb_time_step (={}) rows. "
                              "Got {} rows".format(self.nb_time_step, input_set.shape[0]))

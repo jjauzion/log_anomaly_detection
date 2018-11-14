@@ -90,8 +90,15 @@ def load_model_if_exists(sess_name, hyper_parameter, seed):
     return None
 
 
-def model_optimizer(data_handle, learning_rate, nb_neuron, nb_time_step, sess_folder=None):
-    result = {"mse": [], "learning_rate": [], "nb_neuron": [], "nb_time_step": []}
+def model_optimizer(data_handle, learning_rate, nb_neuron, nb_time_step, sess_folder=None, seed=None):
+    length = len(learning_rate) * len(nb_neuron) * len(nb_time_step)
+    result = np.zeros(length, dtype=[('mse_training', 'f8'),
+                                          ('mse_test', 'f8'),
+                                          ('mse_test_unscaled', 'f8'),
+                                          ('learning_rate', 'f8'),
+                                          ('nb_neuron', 'i8'),
+                                          ('nb_time_step', 'i8')])
+    i = 0
     for lr in learning_rate:
         for num_neuron in nb_neuron:
             for num_time_step in nb_time_step:
@@ -104,7 +111,6 @@ def model_optimizer(data_handle, learning_rate, nb_neuron, nb_time_step, sess_fo
                     "batch_size": hp.batch_size,
                     "nb_iteration": hp.nb_iteration
                 }
-                seed = 42
                 print("----------------------------")
                 print("lr={} ; nb_neuron={} ; num_time_step={}".format(lr, num_neuron, num_time_step))
                 sess_name = sess_folder + "/" + "RNN_{}lr_{}inputs_{}neurons" \
@@ -115,20 +121,26 @@ def model_optimizer(data_handle, learning_rate, nb_neuron, nb_time_step, sess_fo
                     train_model(sess_name, rnn, data_handle, seed=seed)
                 y_pred, test_set, mse_pred, input_data = prediction(sess_name, rnn, data_handle)
                 print("mse prediction = ", mse_pred)
-                result["mse"].append(mse_pred)
-                result["learning_rate"].append(lr)
-                result["nb_time_step"].append(num_time_step)
-                result["nb_neuron"].append(num_neuron)
-    result["mse_unscaled"] = data_handle.inverse_transform([x for x in result["mse"]].reshape(-1, 1))
+                result["mse_training"][i] = rnn.mse_training
+                result["mse_test"][i] = mse_pred
+                result["nb_time_step"][i] = num_time_step
+                result["nb_neuron"][i] = num_neuron
+                result["learning_rate"][i] = lr
+                i += 1
+    result["mse_test_unscaled"] = data_handle.inverse_transform(result["mse_test"].reshape(-1, 1)).reshape(-1)
     with open("opti_results", 'wb') as file:
         pickle.dump(result, file)
-    print(result)
+    result_df = pd.DataFrame(result)
+    result_df.sort_values("mse_test", inplace=True)
+    print(result_df)
+    """
     #Axes3D.plot_wireframe(result["nb_time_step"], result["learning_rate"], result["mse"])
     fig, (ax1, ax2, ax3) = plt.subplots(3)
-    ax1.plot(result["learning_rate"], result["mse"])
-    x = [x for x, y in sorted(zip(result["nb_time_step"], result["mse"]))]
-    y = [y for x, y in sorted(zip(result["nb_time_step"], result["mse"]))]
+    ax1.plot(result["learning_rate"], result["mse_test"])
+    x = [x for x, y in sorted(zip(result["nb_time_step"], result["mse_test"]))]
+    y = [y for x, y in sorted(zip(result["nb_time_step"], result["mse_test"]))]
     ax2.plot(x, y)
-    ax3.plot(result["nb_neuron"], result["mse"])
+    ax3.plot(result["nb_neuron"], result["mse_test"])
+    """
     plt.show()
 
