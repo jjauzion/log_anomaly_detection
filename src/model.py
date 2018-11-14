@@ -5,6 +5,7 @@ import numpy as np
 import datetime
 import os
 import pickle
+import tensorflow as tf
 
 from src.rnn import RNN
 from src import hyper_parameters as hp
@@ -85,48 +86,63 @@ def load_model_if_exists(sess_name, hyper_parameter, seed):
     check += hyper_parameter["nb_neuron"] - rnn.nb_neuron
     check += hyper_parameter["batch_size"] - rnn.batch_size
     check += hyper_parameter["nb_iteration"] - rnn.nb_iteration
-    if check == 0 and seed == rnn.seed:
+    if check == 0 and seed == rnn.seed and get_activation_fct(hyper_parameter["activation_fct"]) == rnn.activation_fct:
         return rnn
     return None
 
 
-def model_optimizer(data_handle, learning_rate, nb_neuron, nb_time_step, sess_folder=None, seed=None):
-    length = len(learning_rate) * len(nb_neuron) * len(nb_time_step)
+def get_activation_fct(fct_name):
+    if fct_name == "tanh":
+        return tf.nn.tanh
+    elif fct_name == "relu":
+        return tf.nn.relu
+    else:
+        raise ValueError("{} is not recognized as an activation function.".format(fct_name))
+
+
+def model_optimizer(data_handle, learning_rate, nb_neuron, nb_time_step, activation_fct,
+                    sess_folder=None, seed=None):
+    length = len(learning_rate) * len(nb_neuron) * len(nb_time_step) * len(activation_fct)
     result = np.zeros(length, dtype=[('mse_training', 'f8'),
-                                          ('mse_test', 'f8'),
-                                          ('mse_test_unscaled', 'f8'),
-                                          ('learning_rate', 'f8'),
-                                          ('nb_neuron', 'i8'),
-                                          ('nb_time_step', 'i8')])
+                                     ('mse_test', 'f8'),
+                                     ('mse_test_unscaled', 'f8'),
+                                     ('learning_rate', 'f8'),
+                                     ('nb_neuron', 'i8'),
+                                     ('nb_time_step', 'i8'),
+                                     ('activation_fct', np.unicode, 16)])
     i = 0
     for lr in learning_rate:
         for num_neuron in nb_neuron:
             for num_time_step in nb_time_step:
-                hyper_parameter = {
-                    "learning_rate": lr,
-                    "nb_input": hp.nb_input,
-                    "nb_output": hp.nb_output,
-                    "nb_time_step": num_time_step,
-                    "nb_neuron": num_neuron,
-                    "batch_size": hp.batch_size,
-                    "nb_iteration": hp.nb_iteration
-                }
-                print("----------------------------")
-                print("lr={} ; nb_neuron={} ; num_time_step={}".format(lr, num_neuron, num_time_step))
-                sess_name = sess_folder + "/" + "RNN_{}lr_{}inputs_{}neurons" \
-                    .format(lr, num_time_step, num_neuron)
-                rnn = load_model_if_exists(sess_name, hyper_parameter, seed)
-                if not rnn:
-                    rnn = RNN(hyper_parameter=hyper_parameter)
-                    train_model(sess_name, rnn, data_handle, seed=seed)
-                y_pred, test_set, mse_pred, input_data = prediction(sess_name, rnn, data_handle)
-                print("mse prediction = ", mse_pred)
-                result["mse_training"][i] = rnn.mse_training
-                result["mse_test"][i] = mse_pred
-                result["nb_time_step"][i] = num_time_step
-                result["nb_neuron"][i] = num_neuron
-                result["learning_rate"][i] = lr
-                i += 1
+                for activation in activation_fct:
+                    hyper_parameter = {
+                        "learning_rate": lr,
+                        "nb_input": hp.nb_input,
+                        "nb_output": hp.nb_output,
+                        "nb_time_step": num_time_step,
+                        "nb_neuron": num_neuron,
+                        "batch_size": hp.batch_size,
+                        "nb_iteration": hp.nb_iteration,
+                        "activation_fct": get_activation_fct(activation)
+                    }
+                    print("----------------------------")
+                    print("lr={} ; nb_neuron={} ; num_time_step={} ; actFct={}"
+                          .format(lr, num_neuron, num_time_step, activation))
+                    sess_name = sess_folder + "/" + "RNN_{}lr_{}inputs_{}neurons_actFct-{}" \
+                        .format(lr, num_time_step, num_neuron, activation)
+                    rnn = load_model_if_exists(sess_name, hyper_parameter, seed)
+                    if not rnn:
+                        rnn = RNN(hyper_parameter=hyper_parameter)
+                        train_model(sess_name, rnn, data_handle, seed=seed)
+                    y_pred, test_set, mse_pred, input_data = prediction(sess_name, rnn, data_handle)
+                    print("mse prediction = ", mse_pred)
+                    result["mse_training"][i] = rnn.mse_training
+                    result["mse_test"][i] = mse_pred
+                    result["nb_time_step"][i] = num_time_step
+                    result["nb_neuron"][i] = num_neuron
+                    result["learning_rate"][i] = lr
+                    result["activation_fct"][i] = activation
+                    i += 1
     result["mse_test_unscaled"] = data_handle.inverse_transform(result["mse_test"].reshape(-1, 1)).reshape(-1)
     with open("opti_results", 'wb') as file:
         pickle.dump(result, file)

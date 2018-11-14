@@ -19,6 +19,7 @@ class RNN:
             self.nb_neuron = hyper_parameter["nb_neuron"]
             self.batch_size = hyper_parameter["batch_size"]
             self.nb_iteration = hyper_parameter["nb_iteration"]
+            self.activation_fct = hyper_parameter["activation_fct"]
             self.report_iter_freq = report_iter_freq
             self.mse = None
             self.mse_training = None
@@ -33,13 +34,14 @@ class RNN:
             "nb_neuron": self.nb_neuron,
             "batch_size": self.batch_size,
             "nb_iteration": self.nb_iteration,
+            "activation_fct": self.activation_fct
         }
         parameter = {
             "hyper_parameter": hyper_parameter,
             "mse": self.mse,
             "mse_training": self.mse_training,
             "seed": self.seed,
-            "report_iter_freq": self.report_iter_freq
+            "report_iter_freq": self.report_iter_freq,
         }
         with open(name, 'wb') as file:
             pickle.dump(parameter, file)
@@ -55,6 +57,7 @@ class RNN:
         self.nb_neuron = hyper_parameter["nb_neuron"]
         self.batch_size = hyper_parameter["batch_size"]
         self.nb_iteration = hyper_parameter["nb_iteration"]
+        self.activation_fct = hyper_parameter["activation_fct"]
         self.mse = parameter["mse"]
         self.mse_training = parameter["mse_training"]
         self.seed = parameter["seed"]
@@ -75,7 +78,7 @@ class RNN:
         tf.set_random_seed(self.seed)
         X = tf.placeholder(dtype=tf.float32, shape=[None, self.nb_time_step, self.nb_input], name="X")
         y = tf.placeholder(dtype=tf.float32, shape=[None, self.nb_time_step, self.nb_output], name="Y")
-        hidden_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.nb_neuron, activation=tf.nn.tanh,
+        hidden_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.nb_neuron, activation=self.activation_fct,
                                               initializer=tf.contrib.layers.variance_scaling_initializer(
                                                   factor=1.0, mode='FAN_AVG', uniform=False))
         output_cell = tf.contrib.rnn.OutputProjectionWrapper(hidden_cell, output_size=self.nb_output)

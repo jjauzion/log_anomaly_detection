@@ -67,8 +67,8 @@ data_handle.train_test_split(split_date, test_set_first=True)
 data_handle.scale_data()
 
 #MODEL OPTIMIZATION
-model.model_optimizer(data_handle, learning_rate=[0.001, 0.01, 0.1],
-                      nb_neuron=[50, 100, 200], nb_time_step=[48, 96, 168],
+model.model_optimizer(data_handle, learning_rate=[0.01], nb_neuron=[50],
+                      nb_time_step=[48, 96], activation_fct=["tanh", "relu"],
                       sess_folder="model", seed=42)
 
 """
@@ -81,6 +81,7 @@ hyper_parameter = {
     "nb_neuron": 200,
     "batch_size": hp.batch_size,
     "nb_iteration": hp.nb_iteration
+    "activation_fct": "tanh"
 }
 rnn = RNN(hyper_parameter)
 
