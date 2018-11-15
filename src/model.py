@@ -58,7 +58,7 @@ def prediction(sess_file, rnn, data_handle, test_date=None, nb_prediction=None):
     return y_pred, test_set, mse_pred, input_data
 
 
-def plot_result(y_pred, test_set, input_data):
+def plot_prediction(y_pred, test_set, input_data):
     nb_pred = y_pred.shape[0]
     nb_time_step = input_data.shape[0]
     test_df = pd.DataFrame(test_set[:nb_pred].reshape(-1),
@@ -69,9 +69,20 @@ def plot_result(y_pred, test_set, input_data):
                            index=list(range(nb_time_step, nb_time_step + nb_pred)),
                            columns=["prediction"])
     df = pd.concat([df, pred_df], axis=1).set_index("time")
+    df["diff"] = abs(df["prediction"] - df["count"])
     print(df)
-    ax = df.plot()
+    df.plot()
+    """
+    fig, ax1 = plt.subplots()
+    ax1.plot(df.index, df["count"], label="count")
+    ax1.plot(df.index, df["prediction"], label="prediction")
+    ax1.legend(loc="upper right")
+    ax2 = ax1.twinx()
+    ax2.plot(df.index, df["diff"], '--r', label="delta")
+    ax2.set_ylim(ax1.get_ylim())
 #    ax.text(1, 1, "coucou", fontsize=12, transform=ax.transAxes)
+    ax2.legend(loc="center right")
+    """
     plt.show()
 
 
@@ -86,7 +97,7 @@ def load_model_if_exists(sess_name, hyper_parameter, seed):
     check += hyper_parameter["nb_neuron"] - rnn.nb_neuron
     check += hyper_parameter["batch_size"] - rnn.batch_size
     check += hyper_parameter["nb_iteration"] - rnn.nb_iteration
-    if check == 0 and seed == rnn.seed and get_activation_fct(hyper_parameter["activation_fct"]) == rnn.activation_fct:
+    if check == 0 and seed == rnn.seed and hyper_parameter["activation_fct"] == rnn.activation_fct:
         return rnn
     return None
 
@@ -105,7 +116,6 @@ def model_optimizer(data_handle, learning_rate, nb_neuron, nb_time_step, activat
     length = len(learning_rate) * len(nb_neuron) * len(nb_time_step) * len(activation_fct)
     result = np.zeros(length, dtype=[('mse_training', 'f8'),
                                      ('mse_test', 'f8'),
-                                     ('mse_test_unscaled', 'f8'),
                                      ('learning_rate', 'f8'),
                                      ('nb_neuron', 'i8'),
                                      ('nb_time_step', 'i8'),
@@ -143,9 +153,17 @@ def model_optimizer(data_handle, learning_rate, nb_neuron, nb_time_step, activat
                     result["learning_rate"][i] = lr
                     result["activation_fct"][i] = activation
                     i += 1
-    result["mse_test_unscaled"] = data_handle.inverse_transform(result["mse_test"].reshape(-1, 1)).reshape(-1)
     with open("opti_results", 'wb') as file:
         pickle.dump(result, file)
+    return result
+
+
+def plot_optimization_result(result=None, file=None):
+    if (result is not None and file is not None) or (result is None and file is None):
+        raise AttributeError("One and only one of 'result' and 'file' shall be defined.")
+    if file:
+        with open(file, 'rb') as res_file:
+            result = pickle.load(res_file)
     result_df = pd.DataFrame(result)
     result_df.sort_values("mse_test", inplace=True)
     print(result_df)
@@ -157,6 +175,8 @@ def model_optimizer(data_handle, learning_rate, nb_neuron, nb_time_step, activat
     y = [y for x, y in sorted(zip(result["nb_time_step"], result["mse_test"]))]
     ax2.plot(x, y)
     ax3.plot(result["nb_neuron"], result["mse_test"])
-    """
     plt.show()
+    """
+    return result_df
+
 

@@ -58,7 +58,12 @@ class DataHandler:
     def inverse_transform(self, data):
         if self.scale is None:
             raise AttributeError("No scale found. Please first create a scale using scale_data method")
-        return self.scale.inverse_transform(data)
+        try:
+            unscaled = self.scale.inverse_transform(data)
+        except ValueError:
+            unscaled = np.empty(shape=data.shape, dtype=np.float32)
+            unscaled[:] = np.nan
+        return unscaled
 
     def next_batch(self, batch_size, nb_time_step):
         """

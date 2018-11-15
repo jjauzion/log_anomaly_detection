@@ -6,6 +6,12 @@ import pickle
 class RNN:
 
     def __init__(self, hyper_parameter=None, load_model=None, report_iter_freq=100):
+        """
+        Create a RNN object either from a saved model or from the hyper parameters in argument.
+        :param hyper_parameter: Create a RNN object from the hyper parameter.
+        :param load_model: Create a RNN object from a saved file (*.param file).
+        :param report_iter_freq: Report iteration frequency during training (every 100 iteration by default).
+        """
         if (not hyper_parameter and not load_model) or (hyper_parameter and load_model):
             raise AttributeError("One and only one of "
                                  "hyper_parameter and load_model shall be defined.")

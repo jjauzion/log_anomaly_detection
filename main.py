@@ -1,5 +1,6 @@
 import datetime
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from src import log_handler as lg
 from src import data_handler as dh
@@ -66,10 +67,13 @@ data_handle = dh.DataHandler(log_data=log.data)
 data_handle.train_test_split(split_date, test_set_first=True)
 data_handle.scale_data()
 
+"""
 #MODEL OPTIMIZATION
-model.model_optimizer(data_handle, learning_rate=[0.01], nb_neuron=[50],
-                      nb_time_step=[48, 96], activation_fct=["tanh", "relu"],
-                      sess_folder="model", seed=42)
+result = model.model_optimizer(data_handle, learning_rate=[0.001, 0.01, 0.03, 0.1], nb_neuron=[50, 100, 200],
+                      nb_time_step=[48, 98, 122, 168], activation_fct=["tanh", "relu"],
+                      sess_folder="model", seed=118)
+model.plot_optimization_result(result=result)
+"""
 
 """
 #CREATING MODEL
@@ -93,12 +97,12 @@ sess_file = "model/RNN_{}lr_{}inputs_{}neurons".format(hyper_parameter["learning
 #TRAIN with model.py
 model.train_model(sess_file, rnn, data_handle, seed=42)
 
-#PREDICTION with model.py
-test_date = datetime.datetime.strptime("2018-10-19", "%Y-%m-%d")
-y_pred, test_set, mse, input_data = \
-    model.prediction(sess_file, rnn, data_handle)
-model.plot_result(y_pred, test_set, input_data)
 """
+#PREDICTION with model.py
+sess_file = "model/RNN_0.03lr_122inputs_100neurons_actFct-tanh"
+rnn = RNN(load_model=sess_file + ".param")
+y_pred, test_set, mse, input_data = model.prediction(sess_file, rnn, data_handle)
+model.plot_prediction(y_pred, test_set, input_data)
 
 """
 #PREDICTION BLIND
