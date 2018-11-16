@@ -75,17 +75,16 @@ result = model.model_optimizer(data_handle, learning_rate=[0.001, 0.01, 0.03, 0.
 model.plot_optimization_result(result=result)
 """
 
-"""
 #CREATING MODEL
 hyper_parameter = {
     "learning_rate": 0.01,
     "nb_input": hp.nb_input,
     "nb_output": hp.nb_output,
-    "nb_time_step": 48,
+    "nb_time_step": 168,
     "nb_neuron": 200,
     "batch_size": hp.batch_size,
-    "nb_iteration": hp.nb_iteration
-    "activation_fct": "tanh"
+    "nb_iteration": hp.nb_iteration,
+    "activation_fct": model.get_activation_fct("relu")
 }
 rnn = RNN(hyper_parameter)
 
@@ -97,10 +96,9 @@ sess_file = "model/RNN_{}lr_{}inputs_{}neurons".format(hyper_parameter["learning
 #TRAIN with model.py
 model.train_model(sess_file, rnn, data_handle, seed=42)
 
-"""
 #PREDICTION with model.py
-sess_file = "model/RNN_0.03lr_122inputs_100neurons_actFct-tanh"
-rnn = RNN(load_model=sess_file + ".param")
+#sess_file = "model/RNN_0.03lr_122inputs_100neurons_actFct-tanh"
+#rnn = RNN(load_model=sess_file + ".param")
 y_pred, test_set, mse, input_data = model.prediction(sess_file, rnn, data_handle)
 model.plot_prediction(y_pred, test_set, input_data)
 

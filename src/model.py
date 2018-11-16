@@ -11,21 +11,23 @@ from src.rnn import RNN
 from src import hyper_parameters as hp
 
 
-def train_model(sess_file, rnn, data_handle, seed=None):
+def train_model(sess_file, rnn, data_handle, seed=None, plot=False):
     """
     Run the train method of the rnn given in argument
     :param sess_file:
     :param rnn:
     :param data_handle:
-    :param seed:
+    :param seed: Seed to be used by tensorflow and next_batch
+    :param plot: If True, plot the MSE during training curve
     :return:
     """
     print("Starting training...")
     mse = rnn.train(data_handle, sess_file=sess_file, seed=seed)
-    fig, ax = plt.subplots()
-    ax.set_xlabel("iteration")
-    ax.set_ylabel("mse")
-    ax.plot(mse["iteration"], mse["mse"])
+    if plot:
+        fig, ax = plt.subplots()
+        ax.set_xlabel("iteration")
+        ax.set_ylabel("mse")
+        ax.plot(mse["iteration"], mse["mse"])
     print("Training completed !!")
 
 

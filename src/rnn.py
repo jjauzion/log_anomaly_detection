@@ -15,6 +15,7 @@ class RNN:
         if (not hyper_parameter and not load_model) or (hyper_parameter and load_model):
             raise AttributeError("One and only one of "
                                  "hyper_parameter and load_model shall be defined.")
+        self._nan = False
         if load_model:
             self.__load_parameter(load_model)
         else:
@@ -26,6 +27,8 @@ class RNN:
             self.batch_size = hyper_parameter["batch_size"]
             self.nb_iteration = hyper_parameter["nb_iteration"]
             self.activation_fct = hyper_parameter["activation_fct"]
+            if type(self.activation_fct) != type(tf.nn.tanh):
+                raise TypeError("hyper_parameters['activation_fct'] shall be of type '{}'".format(type(tf.nn.tanh)))
             self.report_iter_freq = report_iter_freq
             self.mse = None
             self.mse_training = None
@@ -95,15 +98,20 @@ class RNN:
         saver = tf.train.Saver()
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
-            self.mse = {"iteration": [], "mse": []}
+            self.mse = \
+                {"iteration": [(i+1) * self.report_iter_freq for i in range(self.nb_iteration // self.report_iter_freq)],
+                 "mse": []}
             for i in range(self.nb_iteration):
                 x_batch, y_batch = data_handle.next_batch(self.batch_size, self.nb_time_step)
                 sess.run(trainer, feed_dict={X: x_batch, y: y_batch})
-                if i % self.report_iter_freq == 0:
-                    print("Step {}: ; ".format(i), end="")
-                    self.mse["iteration"].append(i)
+                if (i + 1) % self.report_iter_freq == 0:
                     self.mse["mse"].append(loss.eval(feed_dict={X: x_batch, y: y_batch}))
+                    print("After {} iterations: ; ".format(i + 1), end="")
                     print("mse = {}".format(self.mse["mse"][-1]))
+                    if np.isnan(self.mse["mse"][-1]):
+                        self.mse["mse"] += [np.nan] * ((self.nb_iteration - (i + 1)) // self.report_iter_freq)
+                        self._nan = True
+                        break
             saver.save(sess, "./" + sess_file)
         y_pred = self.run(sess_file, data_handle.train_scaled[:self.nb_time_step],
                           data_handle.train_scaled[self.nb_time_step:])
@@ -130,8 +138,11 @@ class RNN:
                              "Got {} rows".format(self.nb_time_step, input_set.shape[0]))
         if test_set is not None and nb_pred != 1:
             raise AttributeError("Can't define both, test_set and nb_pred.")
+        nb_pred = test_set.shape[0] if test_set is not None else nb_pred
         if nb_pred <= 0:
             raise ValueError("nb_pred shall greater or equal to 1")
+        if self._nan:
+            return np.array([np.nan] * nb_pred).reshape(-1, 1)
         tf.reset_default_graph()
         with tf.Session() as sess:
             saver = tf.train.import_meta_graph(sess_file + ".meta")
@@ -139,7 +150,6 @@ class RNN:
 #            saver.restore(sess, tf.train.latest_checkpoint("./model/"))
             x_batch = input_set.reshape(self.batch_size, self.nb_time_step, self.nb_input)
             y_pred = []
-            nb_pred = test_set.shape[0] if test_set is not None else nb_pred
             for i in range(nb_pred):
                 x = x_batch[:, -self.nb_time_step:, :]
                 result = sess.run("rnn/transpose:0", feed_dict={'X:0': x})
@@ -148,5 +158,4 @@ class RNN:
                     x_batch = np.append(x_batch, test_set[i, 0].reshape(-1, 1, 1), axis=1)
                 else:
                     x_batch = np.append(x_batch, result[0, -1, 0].reshape(-1, 1, 1), axis=1)
-            y_pred = np.array(y_pred).reshape(-1, 1)
-        return y_pred
+        return np.array(y_pred).reshape(-1, 1)
