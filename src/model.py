@@ -11,23 +11,24 @@ from src.rnn import RNN
 from src import hyper_parameters as hp
 
 
-def train_model(sess_file, rnn, data_handle, seed=None, plot=False):
+def train_model(sess_file, rnn, data_handle, seed=None, plot=False, evaluate=False):
     """
     Run the train method of the rnn given in argument
     :param sess_file:
     :param rnn:
     :param data_handle:
     :param seed: Seed to be used by tensorflow and next_batch
+    :param evaluate: If True, the MSE will be evaluated at each report_iter_freq of the training
     :param plot: If True, plot the MSE during training curve
     :return:
     """
     print("Starting training...")
-    mse = rnn.train(data_handle, sess_file=sess_file, seed=seed)
+    mse = rnn.train(data_handle, sess_file=sess_file, seed=seed, evaluate=evaluate)
     if plot:
         fig, ax = plt.subplots()
         ax.set_xlabel("iteration")
         ax.set_ylabel("mse")
-        ax.plot(mse["iteration"], mse["mse"])
+        ax.plot(mse["iteration"], mse["mse_batch"])
     print("Training completed !!")
 
 
@@ -39,7 +40,7 @@ def prediction(sess_file, rnn, data_handle, test_date=None, nb_prediction=None):
     :param data_handle: DataHandler object with test_set for the prediction
     :param test_date: Date to predict. If absent the whole test_set will be predicted
     :param nb_prediction: Nb of predication requested.
-    :return:
+    :return: y_pred, test_set, mse_pred, input_data
     """
     if test_date and not isinstance(test_date, datetime.datetime):
         raise TypeError("test_date shall be a datetime.datetime object. Got {}".format(type(test_date)))
@@ -116,7 +117,7 @@ def get_activation_fct(fct_name):
 def model_optimizer(data_handle, learning_rate, nb_neuron, nb_time_step, activation_fct,
                     sess_folder=None, seed=None):
     length = len(learning_rate) * len(nb_neuron) * len(nb_time_step) * len(activation_fct)
-    result = np.zeros(length, dtype=[('mse_training', 'f8'),
+    result = np.zeros(length, dtype=[('avg_mse_training', 'f8'),
                                      ('mse_test', 'f8'),
                                      ('learning_rate', 'f8'),
                                      ('nb_neuron', 'i8'),
@@ -140,15 +141,15 @@ def model_optimizer(data_handle, learning_rate, nb_neuron, nb_time_step, activat
                     print("----------------------------")
                     print("lr={} ; nb_neuron={} ; num_time_step={} ; actFct={}"
                           .format(lr, num_neuron, num_time_step, activation))
-                    sess_name = sess_folder + "/" + "RNN_{}lr_{}inputs_{}neurons_actFct-{}" \
+                    sess_file = sess_folder + "/" + "RNN_{}lr_{}inputs_{}neurons_actFct-{}" \
                         .format(lr, num_time_step, num_neuron, activation)
-                    rnn = load_model_if_exists(sess_name, hyper_parameter, seed)
+                    rnn = load_model_if_exists(sess_file, hyper_parameter, seed)
                     if not rnn:
                         rnn = RNN(hyper_parameter=hyper_parameter)
-                        train_model(sess_name, rnn, data_handle, seed=seed)
-                    y_pred, test_set, mse_pred, input_data = prediction(sess_name, rnn, data_handle)
+                        train_model(sess_file, rnn, data_handle, seed=seed)
+                    y_pred, test_set, mse_pred, input_data = prediction(sess_file, rnn, data_handle)
                     print("mse prediction = ", mse_pred)
-                    result["mse_training"][i] = rnn.mse_training
+                    result["avg_mse_training"][i] = rnn.avg_mse_training
                     result["mse_test"][i] = mse_pred
                     result["nb_time_step"][i] = num_time_step
                     result["nb_neuron"][i] = num_neuron
@@ -168,7 +169,8 @@ def plot_optimization_result(result=None, file=None):
             result = pickle.load(res_file)
     result_df = pd.DataFrame(result)
     result_df.sort_values("mse_test", inplace=True)
-    print(result_df)
+    with pd.option_context('expand_frame_repr', False):
+        print(result_df)
     """
     #Axes3D.plot_wireframe(result["nb_time_step"], result["learning_rate"], result["mse"])
     fig, (ax1, ax2, ax3) = plt.subplots(3)
@@ -182,3 +184,8 @@ def plot_optimization_result(result=None, file=None):
     return result_df
 
 
+def evaluate(sess_file, data_handle, seed):
+    rnn = RNN(load_model=sess_file + ".param")
+    train_model(sess_file, rnn, data_handle, seed=seed, evaluate=True)
+    mse_vs_iter = pd.DataFrame(rnn.mse)
+    mse_vs_iter.plot()
