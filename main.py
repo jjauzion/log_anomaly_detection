@@ -45,20 +45,20 @@ query = {
         }
     }
 }
-save_name = "test.npy"
+log_file_name = "test.npy"
 date_from = datetime.datetime.strptime(date_from, "%Y-%m-%d")
 date_to = datetime.datetime.strptime(date_to, "%Y-%m-%d")
 log.import_data(index="varnishlogbeat", query=query)
-#log.save(name=save_name)
+#log.save(name=log_file_name)
 log.plot()
 plt.show()
 exit()
 """
 
 #LOAD LOG DATA FROM DISK
-save_name = "MNJ_16mai-23jui--04sep-19oct.npy"
+log_file_name = "MNJ_16mai-23jui--04sep-19oct.npy"
 log = lg.Log()
-log.load(save_name)
+log.load(log_file_name)
 log.plot()
 
 #TRAIN TEST SPLIT
@@ -75,6 +75,7 @@ result = model.model_optimizer(data_handle, learning_rate=[0.1, 0.2], nb_neuron=
 model.plot_optimization_result(result=result)
 """
 
+"""
 #CREATING MODEL
 hyper_parameter = {
     "learning_rate": 0.01,
@@ -87,24 +88,29 @@ hyper_parameter = {
     "activation_fct": model.get_activation_fct("tanh")
 }
 rnn = RNN(hyper_parameter, report_iter_freq=100)
+"""
 
+"""
 #SESSION NAME
 sess_file = "model/RNN_{}lr_{}inputs_{}neurons".format(hyper_parameter["learning_rate"],
                                                        hyper_parameter["nb_time_step"],
                                                        hyper_parameter["nb_neuron"])
+"""
 
+"""
 #TRAIN
 model.train_model(sess_file, rnn, data_handle, seed=42, plot=True, evaluate=True)
+"""
+sess_file = "model/RNN_0.01lr_48inputs_50neurons_10000iter"
+rnn = RNN(load_model=sess_file + ".param")
 mse_vs_iter = pd.DataFrame(rnn.mse)
 mse_vs_iter = mse_vs_iter.set_index("iteration")
 print(mse_vs_iter)
 mse_vs_iter.plot()
 plt.show()
 
-"""
-rnn = RNN(load_model="model/RNN_0.01lr_48inputs_100neurons.param")
-sess_file = "model/RNN_0.01lr_48inputs_100neurons"
 
+"""
 #PREDICTION
 #sess_file = "model/RNN_0.03lr_122inputs_100neurons_actFct-tanh"
 #rnn = RNN(load_model=sess_file + ".param")

@@ -28,7 +28,7 @@ class Log:
                     user="jjauzion",
                     pwd=os.environ.get("private")):
         """
-        Import data from Kibana, see query in the code.
+        Import data from Kibana.
         :param index: Name of the elk index to query
         :param backend_tag_keyword: Filter log based on the backend tag keyword
         :param lte: Request log prior to lte date
